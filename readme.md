@@ -9,7 +9,7 @@
 ```
 pip install -r requirements.txt
 
-python ocr.ry
+python ocr.py
 ```
 
 3、使用浏览器或`curl`访问 `http://127.0.0.1:8888/get_and_solve`
