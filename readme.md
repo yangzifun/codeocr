@@ -1,10 +1,22 @@
+## **准备模板**
 
+- 在与 `ocr_server.py` 相同的目录下，创建一个名为 `requests_templates` 的文件夹。
+- 在 `requests_templates` 文件夹中，放入多个 `.txt` 文件，例如，`login_captcha.txt`, `register_captcha.txt`, `uat_env_captcha.txt` 等。每个文件包含一个完整的原始GET请求。
 
-### 图片验证码OCR识别
+将你从Yakit捕获的**原始GET请求**内容粘贴到 `.txt` 文件中。例如：
 
-1、将图片验证码get请求内容添加到 get.txt
+```
+GET /api/captcha/get?t=1678888888888 HTTP/1.1
+Host: your-target-website.com
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36
+Accept: application/json, text/plain, */*
+Referer: https://your-target-website.com/login
+Cookie: session=xyzabc123
+```
 
-2、运行ocr.py  `python 版本 3.12`
+## ** 测试模板**
+
+1、运行ocr.py `python 版本 3.12`
 
 ```
 pip install -r requirements.txt
@@ -12,41 +24,27 @@ pip install -r requirements.txt
 python ocr.py
 ```
 
-3、使用浏览器或`curl`访问 `http://127.0.0.1:8888/get_and_solve`
+2、使用浏览器或`curl`访问 `http://127.0.0.1:8888/templates` 查看模板
 
 ```
-{"success": true, "key": "b6abf5e626e0b98c4117491875a1b1ff", "result": "Eb9n5"}
-```
-
-
-
-### 注意：
-
-> 可能需要修改部分代码解决get响应的不用
-
-
-
-```
-HTTP/1.1 200 OK
-Date: Thu, 10 Jul 2025 09:52:18 GMT
-Content-Type: application/json;charset=UTF-8
-Connection: keep-alive
-expires: 0
-cache-control: no-cache, no-store, max-age=0, must-revalidate
-x-xss-protection: 1; mode=block
-pragma: no-cache
-x-content-type-options: nosniff
-req-cost-time: 18
-req-arrive-time: 1752141138105
-resp-start-time: 1752141138124
-x-envoy-upstream-service-time: 17
-Strict-Transport-Security: max-age=31536000
-Content-Length: 5933
-
 {
-  "key": "9c20e34a934fd8dfb2f4eced1f03488b",
-  "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIIAAAAwCAIAAABSYzXUAAAQ50lEQVR42u1aCUybV55PZ0fT3ZldjfbQSjszGmm051Td0UqQlNylaRqSNk1zk85SkmwKBMKEI6SBCbkPGtKkpCRgG2ODzWHAMTeYI+GoOWKMMWDAgLnNFYO5bWMM+//8Pj9/GNukmYy0K/npL/S+vz9/fO/3e//zecOKc/wfGBucEDhpcA4nDU4anMNJg5MG53DS4KTBOZw0OGlwjjdPw6J2RtXxDP7+mV5FPzamGxp6ve/OLy6KVSr4+9r/3aAzvMG1LBgW3iQNSwbdeJ9YKcksY3gyA/6K5rOBdf7n0uKoleXlN/K603V1/Xfvtp04IXFza3BxkX30kXHhVRegX1qSj4+XKZXhZWVbmEwXGm0ni8WWSl/xzQx6Q2ddZ0lcCSeMw7vCY/2BJUoXLb/uurQGbUFnQVhJ2B7OnsO8wztYO6JF0cZl42vSYDSulJWtPHy4ci3s+7iwg4yAnwH0a6W9mvGD3nJRrZ4Ri9UFBS9zcpbm50GzbDR2BQUB9FYyUVCw7tOaRkYuCIXbTNCvFUF7+7pPUNQqWOdZNB8akpSvUtCkJL4E3aBsUPJv8mWlMsPi+laSr8jfydrpQnNBsi9lH5oAK+iGUmXp5/zPuTKuzqBbnwbg4P79ldjYlZamSWbg35hB/1Ha5X8RPj7QWHArKfjvkTLr5n+9CvqzEklPeLhs714q0O1ffLGs14+wWOiy5eBBZXj4cEKCMiwMLnsuX17HgHS67YmJCPGNdPpnaWkhQiGzsfGDpCSkPJGVte6LCe4KAHRBlECSJxnvGx/tHsWUaEY1ujkdGAdmCChx/DRvgTeAflJwki6hy8flslEZpqRP0zetmwbjwAwBJevQkJe3Eh9PTBoLbwPWvMh/H2qviLq7UFND3iDOvYINYlhR4fjl5lpaGjdvXrXZXV0JcXEZiomR7tyJlOr8fHT/KIdDsPLZZ44fC4gD1od4PMnwsM5g2arxYjE2CPjI8UPAFwHE0iIpGVo085gGsICG3AaYgKdKDk1GyjJG2ZJhyd7TYNcDxCwpC12Oz49jGsACaA3wSi7gqXYn70bK8LJw/ZLeLg3Xrq2oVMQk4+o7ALQk/wbEgOqC0rjI6/3NBFjamXEUIUCKY/c7Cirz88379yOgx9LTwSwWuruNWm3f9eugkWzciLkZptPRVyaEQkSV4/BwNCMDgGZIJODF64eG6BJJdX8/6Ce12i1mNxVcXOyYBgR0bnQu1iQGJiLEs6OyORc5MFFKlNoZbXFsMdI3CZvsPQ0B/WXul1izPXE7QvxU9ikPjgdMypRlk9rJ4OJgpE9qSrJLg48P8XdG3YuAHumqruL6only6D8aDQSBWAMyMSiz92ZDsbEY6LG0NKyHXIjKAeGFIiNJD9bYiDTzbW32HquamUFAS0dGbldVofnu5ORFIxEMsQakc2LCAQ29UlgjjeHPwK7/6Z2n2CBAuBe5RtMojStFGuBJUaOw+bTnvc8BWTeGG3b9Xk+9sEGA7OXuXTISxsRr5SHN0YyjdmkAtzw2ttJZB3thA8PvxwvTo8xAS4gebCPC19RYJ933R0jzPPELe+vs9PcHQCEFgr/KixepHykvXVoVKry8SIYGBsgobX8vF3R2AsSbGIyJhQVqiK4bHIRP+6emIFogzZXnzx3QMKOeQeCqFCqkqcmoodIgLZQCB3n389jBbKRhnGVALHnGfGZrc6gQuA2qBqT5puYbKg2J0kSkB4tBms0MN7s08HgrsHGruX4Aceb1/wTvT82OGnKvotuEcQeRhuH/k4WZMZvr7ImIICA+dQr+yj09V8UMuZxKQ+P27Sj9Nep0SDPCZNqD7051NUB8PDMTvD81O6I1kOuHDApp3ExUOWCCHcRGcKPL/uZ+zAEzkAlRuiGvoehREd2XjpQ50TlADDBh0ybc2e5UuKv7qzEHW+mbO5lPIFURnTy6MZ5UeiccsEuDTrdy5cpKQvC7AHFF0un6wmQqDW2V8WQsVdZgJaRPNhc5+O23AGizKUdq2rXL6lNEDxa9OaJK3d3hsv/2bXvYHcvMBIivV1Qgs8DCN/sx2egoVkIwd5RlPsgHcJ8lPsNlBDOAiRCvzawFTea1zJp0i4nISmSIraLYorVPO5t/loi9TwPVeXlD330nvxDkFueKEL8UQC7z5hmLfdD5Vx3VDTOTGprvW4BvuE/C7YjvibnvW7nRO7rquNSSLfvrLYgG7le/MhptZNYQlqkJ0rJh1T1kNDbLtDkVkx89CpdQT9j2JHq9qwnf7PZ2KB1gDvJlbm5hVxe16DqVnY1o2MvlLhntFlB1/DoAl3+bjzXCx0LQJIUkgSkQgdeHlhqeStLgS5udmCVMeXKO+xUXudCp6uqx1NT+O3cUPj6XQ7YCuIduWRZ1OoKA+/3YTU2h52BTjuflfpLkgThwpbmOzI44ogEyIoSvZrSDWPnLnvnpESBgpPv74c5KSogTYINQinlrFzlVWblqv48Rvgty0+6QEOP8PLACBfPaGN4ZEEBEFHO0sBqQESF8+zQaFK7V8ChTNUfNUJ/39mKDKFHaTfmVYiXhf84xV8wc9jb2ggvql/WjS5QvIeFfTX2ZnQ3bvNUnoG7XXsmmTVZVZ/wxk8d/4qqMCB9mMifLy4tE3I30jVX9VehpogERNgVIn9apousF4YAsJ+yfyILOoAdflH75XwnEfd8aaiNLj+VlY3rkvyEaBHffs9FU6eqiviVKfhR+fjDvu3GDADE+Hn86EB2NvoXS2eZ9+2wCF1tfD8ju4XDIytxoBF90MD3dxWQW9eZ+lHF5GSlBvAUCu2Xgy2kE8fTYtHlRy8MtPfNy+aRQOEyjZZy+i2ko8vCywh38bWdg4MDXX4NBgDX3dkoQxAPTA+bXMEIdh/8d1AqYhkx55jo05ERvB2TLGSeIFx3vhgqOGh4KYvbgO9uqaFiP6bEU5AsL1JcG+wVlt6lOBh8119oK9oEzVzARMuWAWAtBe/Nmm8CdyckBZCPKy4nYMz0NFRw1PJyjdEGAHqyvt9MuNGg07D8QtUL97TiIn+0nT0IMo74z2/s+mSN9GdfsdaojKLTaL6L0/L3Z9najqR9jNT5I+gAgLui03YzZn7qfzJESNkNd7bCZYdAnBPwl0TKqIkoqUVqgVSsJUqNF3SxZoC1qoZhAeggVNjo/u3fjJb007cqhR4/QpcJUoXQFB+P2BvqKOicHadauE/b+5oQEgPWpqWV0TySyaiVBaoQ7rPqlJSgmkP6UQAB+HDbsOJ8PPhqyZ0ijpe+/D/8lzfMy4XAOhVDTNvgU7iH8T0JWejhRRdP9iGQJIjbkTkb7weZcwTlA+UblDZufgnfyzPSEG/Zw9gxNDzmiAadAYAdWlRo76G/RRKWw5ONQZluqCrnQOh3yshgy2DhoNOXlWDPz4gVAg9tKpKOor0eatR1vnAKBHVhVau5sNlk9yOWzUulEYSF45+gHD/ANyQcOrO0hAhOFpwkaOOdokN7AFxfVasJkxd0DLaRj0S/oUT+DE8bRDGscV+aPXzwGlGHXU5XCbiFEBbI+1c+ifgYw0aPpsUtDU/HXAGjKpV+TBJppACNQDzahuUwYje+fVLViGrKjrD0J7Cm85j5TDmqYmMAaha8vaDpMmWvzfvLVtb296NO5lharpyU1NQGgH6ekLC8t6VWqa3w+gvi9+PjSkBA0v3P6NH5+3ocfYhqOR0V1nj3bd/PmCJsNfh+8v8EU5HubepHbmRqbIj3VooHY+740hYgsDgbbBhl+DCKDCk3SjDpioqK3Armd/ikyyENRDVEa8qJcBdk1qRus28TYBPd8mPRhn6bPNg2QmBK1MfukFQ0gs5MD7OC/g0kZ/fisuk/+/DHECai0qS5L1V6+qnR4+BCD0h0cTKakx49b4nZHB+x6KO4G7t3DnSgyllRVQfCYa26GlANiIDgTr5gYAPS8qSoECQoKwiiX7tix/dEjmJyNjKz29Y27e/dMXNwmczmN5IVKZeOwyNzRk1fKLa3DQCZyRFAi4M4H6jilRaTptXp7NOCOXpbc0uLdxtwGGiADCjrc+UAdp0/TPp3Tz1nToJ19Sff7C0Czqz4FaWozQjDE4K/yHnwAE3QPVSCtQpPCGA97pQPUa0g58M03WAnmAtt/pqEBfAK4Ecg6ukNDG9bkgiAVW7e6xscDmk9MLIL1RF6/jiGuKSvzMZV1G1dDj9IqNAksLLSJHfciFzVQLf2SmAJcS6sH1WTQGlAnBCQQlV1WrQOD2MvdixqoVgEDBPhQqEkLgwkEalB+W/utNQ2dtWTNTBQKqKYtvIOx7pFkVaf6WxHAv+0i4p3nXfkPdAkMGZcsx5ATxcUYR9nu3RAewC20e3uvRdmmQGEBBQQQA/Skmr3/iLkOSJRKMdblPT1RpiYHVf6bz78vEh02Z1PAkMFWdBU+EaJtjjWtz1stx0HhKdpZLSSyIp4IaTgXOA5oCBWGom1u6Q+Ze3kgn6R8otFqIJG9L7qPNB9xPrKmoYJ9CqDMuPqO6fzHIK+Mw4kQ6mQoathonnbpNxLeHzsEMQW3duAb6D5vFZ9/D1Ig+bFjuMW9rjS5u8NXeiIjITMB5zNZVtZ6+DDRz4iKoi7vegW4XdrRjAzCcRmNWXI5ToRQJyNPoUBzqBiSZbLv+/tDzc0lxMHDWtu7WFokRUXyoo7cQHOaOWqPr/BRIaIKCTuYvWL/nJQlZaEieX6RzPTG5saoPb7AwkBEFRJ3tvuy6XEWGnhXfwto5t/cLrrlyT33D1Ybv9jzHdk+j2SvnxLH0Sffzv/4lwn/Q3ontvfbBft+Wev2OyuIG7dtw3OJq6vqyRMVnQ5VG7XRDenKhFAIkbP7woXmjz9Gh0LUWILGEdOmviAUpre0fJqWZrXxAXfY6SeysmC+PzWVLZXuYLHQR3AzxPaXttJ8slLpUCF8x5SWHmVqRCqVCSwQq3HAsDnEKjHCt3mseW3FYCUQq3HA2EA59/hrK+jZ3j/JOErmqYV7fw3oiLa8yzxtCcss359Vhu3rv38PHA5k5ZApgqOfVyj05ngIabiFmNXHDI4FJbiUU5REK+gB7kulpWjOa20los709C7zOSiIB4cDeoNxnUN5MAJUFrzIftHX1CfOFec9yEMaoniOLcLH1Ax/Rm9j73o/EJmHaAwQQ/Ja2VcZL473y/NDGpCgoiB8TO3GcHvW+8xGpoSbE6hvUXB1a8W9I4n+P0VnD6ONZQjciUFZ5rV30/74z+C1oIJz/Fqthw69OvRUwqDgoj4HNydQ3+Jiael39fVoy7/HYOATHpgcy8w8kJYGXgsquFf8uQL/Jt/mxkeH1do5bV1WHUzwyYTj8Tn/c5sbHx1WT2mnYupiYIJPJqxpUHU8S/B/m3RBjz/NvPE7MhG6+AurTPTVB66TraTT379xyxZ7NOD8lWLsKlRCowNOT1NehLa8zUz0B40Xghc2XRBxHH2V90Ofhoo4m3KEd+SVfiCjHpBaNZHgEpSvvcJV7W7TNm/atasnImJpZubl06eNW7euiiVbtrQeOTLK4Szb8iQKtdqqiQSXCrX6T/+tFJRs+Q/zrQgAv5QTneM4EtgcULKhsweqgF86k3MGR4L1f6dkWFyoF4Szzv9ccGeTojbJ5lnCqw8ox9p+/3uZh8dQTIzuT962OoMhtr5+J4v1hUCQr1AsGY0rb2gYl4ziHDFkQbxIXiWnUilWoiOH1+TVaIgTx0EWdIh36FblrRJlydpe3uv/eNI5/nzDSYOTBudw0uCkwTmcNDhpcA4nDU4anMNJw/+L8b/R9HCrTwG59AAAAABJRU5ErkJggg=="
+    "status": "success",
+    "available_templates": [
+        "login_captcha.txt",
+        "register_captcha.txt",
+        "uat_env_captcha.txt"
+    ]
 }
 ```
 
-图片响应格式为 `data:image/png;base64,`
+## **执行特定模板的识别任务**
+
+> 根据上一步返回的列表，选择一个模板进行调用；例如，要使用`get.txt`
+>
+>  `http://127.0.0.1:8888/get_and_solve?template=get.txt`
+
+```
+{"status": "success", "key": "133443c1ff3cf1f3146caffe9d031a04", "result": "wct2d"}
+```
+
+### ![A2687A4A-57C0-44E2-BE6D-07946B99B402.png](https://s3.yangzihome.space/BBS/A2687A4A-57C0-44E2-BE6D-07946B99B402.png)
