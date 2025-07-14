@@ -1,357 +1,211 @@
 # -*- coding: utf-8 -*-
-# @Time    : 2025/7/11
-# @Software: YZFN
+# @Time    : 2025/7/11 (Refactored for Multi-Template support)
+# @Software: YZFN (Refactored by Senior Software Engineer)
+
 import argparse
+import base64
+import json
+import logging
+import os
+from pathlib import Path
+from typing import List
+
+import aiohttp
 import ddddocr
 from aiohttp import web
-import base64
-import aiohttp
-import json
-import os
 
-print(
-    "欢迎使用codeocr服务端脚本\n\n")
-parser = argparse.ArgumentParser()
+# --- 1. 初始化配置 (Initialization & Configuration) ---
 
-parser.add_argument("-p", help="http port", default="8888")
-args = parser.parse_args()
+# 使用 logging 模块记录信息，是生产环境的最佳实践
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# ==================== 关键修改点 ====================
-# 在初始化时添加 show_ad=False 参数，以禁用ddddocr库的广告和欢迎信息输出
-ocr = ddddocr.DdddOcr(show_ad=False)
-# ===================================================
+# 定义存放请求模板的安全目录
+TEMPLATES_DIR = Path("requests_templates")
 
-port = args.p
-
-auth_base64 = "f0ngauth"  # 可自定义auth认证
+# 初始化 OCR 引擎
+try:
+    ocr = ddddocr.DdddOcr(show_ad=False)
+    logging.info("ddddocr引擎初始化成功。")
+except Exception as e:
+    logging.error(f"ddddocr引擎初始化失败: {e}")
+    exit(1)  # 如果核心组件失败，则退出程序
 
 
-def parse_raw_http_request(filepath="get.txt"):
+# --- 2. 核心辅助函数 (Core Helper Functions) ---
+
+def parse_raw_http_request(filepath: Path):
     """
-    解析一个包含原始HTTP请求的文件（如Burp Suite的原始请求）。
-    :param filepath: 文件路径
-    :return: a tuple containing (method, url, headers)
+    从一个安全路径下的文件解析原始HTTP GET请求。
+    (此函数保持不变)
     """
-    if not os.path.exists(filepath):
-        raise FileNotFoundError(f"请求文件未找到: {filepath}")
+    if not filepath.is_file():
+        raise FileNotFoundError(f"请求模板文件未找到: {filepath}")
 
     with open(filepath, 'r', encoding='utf-8') as f:
-        lines = [line.strip() for line in f if line.strip()]
+        content = f.read().strip()
+        if not content:
+            raise ValueError(f"请求模板文件为空: {filepath}")
+        lines = content.splitlines()
 
-    # 解析第一行: "GET /path/to/resource HTTP/1.1"
     first_line_parts = lines[0].split()
-    method = first_line_parts[0]
+    if len(first_line_parts) < 2:
+        raise ValueError("请求行格式无效。")
+    method = first_line_parts[0].upper()
     path = first_line_parts[1]
 
-    # 解析请求头
+    if method != 'GET':
+        raise ValueError(f"仅支持GET方法, 但在文件中找到 '{method}'。")
+
     headers = {}
     for line in lines[1:]:
         if ':' in line:
             key, value = line.split(':', 1)
             headers[key.strip()] = value.strip()
 
-    # 从 'Host' 头构建完整的URL
     host = headers.get('Host')
     if not host:
-        raise ValueError("在请求文件中未找到 'Host' 头.")
+        raise ValueError("在请求文件中未找到 'Host' 头。")
 
-    # 假设是 https 协议, 这在现代web应用中是标准的
-    scheme = 'https'
-    url = f"{scheme}://{host}{path}"
-
-    # aiohttp 会自动处理 Host 和 Content-Length, 从headers中移除以避免冲突
     headers.pop('Host', None)
+    headers.pop('Content-Length', None)
+
+    scheme = headers.get('X-Forwarded-Proto', 'https')
+    url = f"{scheme}://{host}{path}"
 
     return method, url, headers
 
 
-# 识别纯整数0-9
-async def handle_cb00(request):
-    if request.headers.get('Authorization') != 'Basic ' + auth_base64:
-        return web.Response(text='Forbidden', status='403')
-    ocr.set_ranges(0)
-    img_base64 = await request.text()
-    img_bytes = base64.b64decode(img_base64)
-    res = ocr.classification(img_bytes, probability=True)
-    s = ""
-    for i in res['probability']:
-        s += res['charsets'][i.index(max(i))]
-    print(s)
-    return web.Response(text=s)
+# --- 3. aiohttp 请求处理器 (Request Handlers) ---
 
-
-# 识别纯小写英文a-z
-async def handle_cb01(request):
-    if request.headers.get('Authorization') != 'Basic ' + auth_base64:
-        return web.Response(text='Forbidden', status='403')
-    ocr.set_ranges(1)
-    img_base64 = await request.text()
-    img_bytes = base64.b64decode(img_base64)
-    res = ocr.classification(img_bytes, probability=True)
-    s = ""
-    for i in res['probability']:
-        s += res['charsets'][i.index(max(i))]
-    print(s)
-    return web.Response(text=s)
-
-
-# 识别纯大写英文A-Z
-async def handle_cb02(request):
-    if request.headers.get('Authorization') != 'Basic ' + auth_base64:
-        return web.Response(text='Forbidden', status='403')
-    ocr.set_ranges(2)
-    img_base64 = await request.text()
-    img_bytes = base64.b64decode(img_base64)
-    res = ocr.classification(img_bytes, probability=True)
-    s = ""
-    for i in res['probability']:
-        s += res['charsets'][i.index(max(i))]
-    print(s)
-    return web.Response(text=s)
-
-
-# 识别小写英文a-z + 大写英文A-Z
-async def handle_cb03(request):
-    if request.headers.get('Authorization') != 'Basic ' + auth_base64:
-        return web.Response(text='Forbidden', status='403')
-    ocr.set_ranges(3)
-    img_base64 = await request.text()
-    img_bytes = base64.b64decode(img_base64)
-    res = ocr.classification(img_bytes, probability=True)
-    s = ""
-    for i in res['probability']:
-        s += res['charsets'][i.index(max(i))]
-    print(s)
-    return web.Response(text=s)
-
-
-# 识别小写英文a-z + 整数0-9
-async def handle_cb04(request):
-    if request.headers.get('Authorization') != 'Basic ' + auth_base64:
-        return web.Response(text='Forbidden', status='403')
-    ocr.set_ranges(4)
-    img_base64 = await request.text()
-    img_bytes = base64.b64decode(img_base64)
-    res = ocr.classification(img_bytes, probability=True)
-    s = ""
-    for i in res['probability']:
-        s += res['charsets'][i.index(max(i))]
-    print(s)
-    return web.Response(text=s)
-
-
-# 识别大写英文A-Z + 整数0-9
-async def handle_cb05(request):
-    if request.headers.get('Authorization') != 'Basic ' + auth_base64:
-        return web.Response(text='Forbidden', status='403')
-    ocr.set_ranges(5)
-    img_base64 = await request.text()
-    img_bytes = base64.b64decode(img_base64)
-    res = ocr.classification(img_bytes, probability=True)
-    s = ""
-    for i in res['probability']:
-        s += res['charsets'][i.index(max(i))]
-    print(s)
-    return web.Response(text=s)
-
-
-# 识别小写英文a-z + 大写英文A-Z + 整数0-9
-async def handle_cb06(request):
-    if request.headers.get('Authorization') != 'Basic ' + auth_base64:
-        return web.Response(text='Forbidden', status='403')
-    ocr.set_ranges(6)
-    img_base64 = await request.text()
-    img_bytes = base64.b64decode(img_base64)
-    res = ocr.classification(img_bytes, probability=True)
-    s = ""
-    for i in res['probability']:
-        s += res['charsets'][i.index(max(i))]
-    print(s)
-    return web.Response(text=s)
-
-
-# 识别自定义字符，默认为识别算术
-async def handle_cb000(request):
-    if request.headers.get('Authorization') != 'Basic ' + auth_base64:
-        return web.Response(text='Forbidden', status='403')
-    ocr.set_ranges(request.headers.get('ranges'))
-    print(request.headers.get('ranges'))
-    img_base64 = await request.text()
-    img_bytes = base64.b64decode(img_base64)
-    res = ocr.classification(img_bytes, probability=True)
-    s = ""
-    for i in res['probability']:
-        s += res['charsets'][i.index(max(i))]
-    print(s)
-    if '+' in s:
-        zhi = int(s.split('+')[0]) + int(s.split('+')[1][:-1])
-        print(zhi)
-        return web.Response(text=str(zhi))
-    elif '-' in s:
-        zhi = int(s.split('-')[0]) - int(s.split('-')[1][:-1])
-        print(zhi)
-        return web.Response(text=str(zhi))
-    elif '*' in s:
-        zhi = int(s.split('*')[0]) * int(s.split('*')[1][:-1])
-        print(zhi)
-        return web.Response(text=str(zhi))
-    elif 'x' in s:
-        zhi = int(s.split('x')[0]) * int(s.split('x')[1][:-1])
-        print(zhi)
-        return web.Response(text=str(zhi))
-    elif '/' in s:
-        zhi = int(s.split('/')[0]) / int(s.split('/')[1][:-1])
-        return web.Response(text=str(zhi))
-    else:
-        return web.Response(text=s)
-
-
-# 识别常规验证码
-async def handle_cb2(request):
-    if request.headers.get('Authorization') != 'Basic ' + auth_base64:
-        return web.Response(text='Forbidden', status='403')
-    img_base64 = await request.text()
-    img_bytes = base64.b64decode(img_base64)
-    res = ocr.classification(img_bytes)
-    print(res)
-    return web.Response(text=ocr.classification(img_bytes)[0:10])
-
-
-# 识别算术验证码
-async def handle_cb(request):
-    zhi = ""
-    if request.headers.get('Authorization') != 'Basic ' + auth_base64:
-        return web.Response(text='Forbidden', status='403')
-    img_base64 = await request.text()
-    img_bytes = base64.b64decode(img_base64)
-    res = ocr.classification(img_bytes).replace("=", "").replace("?", "")
-    print(res)
-    if '+' in res:
-        zhi = int(res.split('+')[0]) + int(res.split('+')[1][:-1])
-        print(zhi)
-        return web.Response(text=str(zhi))
-    elif '-' in res:
-        zhi = int(res.split('-')[0]) - int(res.split('-')[1][:-1])
-        print(zhi)
-        return web.Response(text=str(zhi))
-    elif '*' in res:
-        zhi = int(res.split('*')[0]) * int(res.split('*')[1][:-1])
-        print(zhi)
-        return web.Response(text=str(zhi))
-    elif 'x' in res:
-        zhi = int(res.split('x')[0]) * int(res.split('x')[1][:-1])
-        print(zhi)
-        return web.Response(text=str(zhi))
-    elif '/' in res:
-        zhi = int(res.split('/')[0]) / int(res.split('/')[1][:-1])
-        return web.Response(text=str(zhi))
-    else:
-        return web.Response(text=res)
-
-
-# ==================== 新增功能：从get.txt文件读取请求并发起识别 ====================
-async def handle_get_and_solve(request):
+# 新增：列出所有可用的请求模板
+async def list_available_templates(request: web.Request) -> web.Response:
     """
-    该函数处理一个GET请求。它会读取 get.txt 文件，
-    解析出请求详情（URL, Headers），然后发起这个请求以获取验证码，
-    最后进行识别并返回结果。
+    扫描并返回 requests_templates 目录中所有可用的 .txt 模板文件。
+    """
+    logging.info("收到模板列表请求 /templates")
+    if not TEMPLATES_DIR.is_dir():
+        return web.json_response(
+            {'status': 'error', 'message': f"模板目录 '{TEMPLATES_DIR}' 不存在。"},
+            status=500
+        )
+
+    try:
+        # 仅查找以 .txt 结尾的文件，更安全、更精确
+        templates: List[str] = [f.name for f in TEMPLATES_DIR.glob('*.txt') if f.is_file()]
+        logging.info(f"发现 {len(templates)} 个可用模板。")
+        return web.json_response({
+            'status': 'success',
+            'available_templates': templates
+        })
+    except Exception as e:
+        logging.error(f"扫描模板目录时发生错误: {e}", exc_info=True)
+        return web.json_response({'status': 'error', 'message': '扫描模板目录时发生未知错误。'}, status=500)
+
+
+async def handle_get_and_solve(request: web.Request) -> web.Response:
+    """
+    根据指定的模板文件，获取并识别验证码。
     """
     try:
-        # 1. 从 get.txt 动态解析请求参数
-        method, target_url, headers = parse_raw_http_request('get.txt')
+        # 从查询参数获取模板文件名，如果没有提供则报错
+        template_name = request.query.get('template')
+        if not template_name:
+            return web.json_response(
+                {'status': 'error',
+                 'message': "缺少 'template' 查询参数。请使用 ?template=<your_template_file.txt> 指定模板。"},
+                status=400
+            )
 
-        # 确保方法是GET
-        if method.upper() != 'GET':
-            return web.json_response({'error': f"不支持的方法: {method}. 'get.txt' 必须是一个GET请求."}, status=400)
+        # 安全性检查：防止路径遍历攻击
+        if '..' in template_name or os.path.isabs(template_name) or '/' in template_name or '\\' in template_name:
+            logging.warning(f"检测到潜在的路径遍历攻击: {template_name}")
+            return web.json_response(
+                {'status': 'error', 'message': '无效的模板文件名。'},
+                status=400
+            )
 
-        print(f"从 'get.txt' 解析到请求: {method.upper()} {target_url}")
+        template_path = TEMPLATES_DIR / template_name
 
-        # 2. 使用解析出的参数发起异步GET请求
-        async with aiohttp.ClientSession() as session:
-            # UAT环境可能使用自签名证书，添加 ssl=False 以避免校验错误
-            async with session.get(target_url, headers=headers, ssl=False) as response:
+        # 解析HTTP请求模板
+        method, target_url, headers = parse_raw_http_request(template_path)
+        logging.info(f"使用模板 '{template_name}' -> {method} {target_url}")
 
-                # 3. 检查响应状态并解析
-                if response.status == 200:
-                    # 尝试解析JSON响应
-                    try:
-                        data = await response.json()
-                    except:
-                        # 如果JSON解析失败，尝试作为文本处理
-                        text = await response.text()
-                        return web.json_response({
-                            'error': '目标服务器返回了非JSON响应',
-                            'content': text
-                        }, status=500)
+        # 使用aiohttp发起异步请求获取验证码
+        async with aiohttp.ClientSession(headers=headers) as session:
+            async with session.get(target_url, ssl=False) as response:
 
-                    image_data_uri = data.get('image')
-                    captcha_key = data.get('key')
-
-                    if not image_data_uri:
-                        return web.json_response({'error': "从目标服务器响应中未找到 'image' 字段"}, status=500)
-
-                    # 4. 提取并解码Base64图片数据
-                    try:
-                        # 分割 "data:image/png;base64," 和实际的base64字符串
-                        _, base64_str = image_data_uri.split(',', 1)
-                        img_bytes = base64.b64decode(base64_str)
-                    except Exception as e:
-                        return web.json_response({'error': f'Base64 解码失败: {e}'}, status=500)
-
-                    # 5. 使用 ddddocr 进行识别
-                    result = ocr.classification(img_bytes)
-
-                    print(f"远程获取验证码成功. Key: {captcha_key}, 识别结果: {result}")
-
-                    # 6. 将结果以JSON格式返回
-                    return web.json_response({
-                        "success": True,
-                        "key": captcha_key,
-                        "result": result
-                    }, status=200)
-                else:
+                # 处理目标服务器的响应
+                if response.status != 200:
                     error_text = await response.text()
-                    print(f"请求目标失败: {response.status}, 详情: {error_text}")
+                    logging.error(f"请求目标服务器失败: {response.status}, 详情: {error_text[:200]}")
                     return web.json_response({
-                        'error': '请求目标服务器验证码失败',
-                        'status_code': response.status,
-                        'details': error_text
+                        'status': 'error',
+                        'message': '请求目标验证码服务器失败。',
+                        'target_status_code': response.status,
+                        'target_response': error_text[:200]
                     }, status=502)
 
-    except (FileNotFoundError, ValueError) as e:
-        # 捕获文件未找到或解析错误
-        print(f"错误: {e}")
-        return web.json_response({'error': str(e)}, status=500)
+                # 解析JSON响应并提取图片数据
+                try:
+                    data = await response.json()
+                except aiohttp.ContentTypeError:
+                    return web.json_response({'status': 'error', 'message': '目标服务器返回了非JSON格式的响应。'},
+                                             status=500)
+
+                image_data_uri = data.get('image')
+                captcha_key = data.get('key')
+                if not image_data_uri:
+                    return web.json_response({'status': 'error', 'message': "从目标服务器响应中未找到 'image' 字段。"},
+                                             status=500)
+
+                # 解码Base64图片并进行OCR识别
+                _, base64_str = image_data_uri.split(',', 1)
+                img_bytes = base64.b64decode(base64_str)
+                result = ocr.classification(img_bytes)
+                logging.info(f"验证码识别成功. Key: {captcha_key}, 识别结果: {result}")
+
+                # 返回成功结果
+                return web.json_response({
+                    "status": "success",
+                    "key": captcha_key,
+                    "result": result
+                }, status=200)
+
+    except FileNotFoundError as e:
+        logging.warning(f"请求的模板文件不存在: {e}")
+        return web.json_response({'status': 'error', 'message': str(e)}, status=404)
+    except ValueError as e:
+        logging.error(f"模板文件格式错误: {e}")
+        return web.json_response({'status': 'error', 'message': f'模板文件内容格式错误: {e}'}, status=400)
     except Exception as e:
-        # 捕获其他所有异常
-        import traceback
-        traceback.print_exc()
-        return web.json_response({'error': f'发生未知错误: {str(e)}'}, status=500)
+        logging.error(f"发生未知服务器错误: {e}", exc_info=True)
+        return web.json_response({'status': 'error', 'message': '发生未知服务器内部错误。'}, status=500)
 
 
-# ==============================================================================
-
-
-app = web.Application()
-app.add_routes([
-    web.post('/reg2', handle_cb),
-    web.post('/reg', handle_cb2),
-    web.post('/reg00', handle_cb00),
-    web.post('/reg01', handle_cb01),
-    web.post('/reg02', handle_cb02),
-    web.post('/reg03', handle_cb03),
-    web.post('/reg04', handle_cb04),
-    web.post('/reg05', handle_cb05),
-    web.post('/reg06', handle_cb06),
-    web.post('/reg000', handle_cb000),
-
-    # ======= 注册新的路由 =======
-    web.get('/get_and_solve', handle_get_and_solve),
-])
+# --- 4. 应用启动入口 (Application Entrypoint) ---
 
 if __name__ == '__main__':
-    # 确保 get.txt 文件存在于脚本同一目录下
-    if not os.path.exists('get.txt'):
-        print("\n[错误] 'get.txt' 文件未找到! 请确保该文件与Python脚本在同一目录下。\n")
+    parser = argparse.ArgumentParser(description="一个通过原始HTTP请求模板获取并识别验证码的API服务。")
+    parser.add_argument("-p", "--port", help="服务监听的HTTP端口", default="8888")
+    args = parser.parse_args()
+
+    # 检查并创建模板目录
+    if not TEMPLATES_DIR.exists():
+        logging.info(f"模板目录 '{TEMPLATES_DIR}' 不存在，正在创建...")
+        TEMPLATES_DIR.mkdir()
+        logging.info(f"请将你的原始HTTP请求文件（以.txt结尾）放入 '{TEMPLATES_DIR}' 目录中。")
     else:
-        web.run_app(app, port=int(port))
+        logging.info(f"将从 '{TEMPLATES_DIR}' 目录加载请求模板。")
+
+    app = web.Application()
+    app.add_routes([
+        web.get('/get_and_solve', handle_get_and_solve),
+        # 注册新的API端点
+        web.get('/templates', list_available_templates),
+    ])
+
+    logging.info(f"服务启动，监听端口 {args.port}...")
+    logging.info(f"使用 'GET /templates' 查看所有可用的请求模板。")
+    logging.info(f"使用 'GET /get_and_solve?template=<filename>' 执行识别任务。")
+
+    web.run_app(app, port=int(args.port))

@@ -7,14 +7,14 @@ i18n: {"language":"zh-CN","timezone":"+8","timezoneCity":"Asia/Shanghai","dir":"
 Accept-Language: zh-CN
 sec-ch-ua: "Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"
 sec-ch-ua-mobile: ?0
-traceparent: 00-acaf40648120497c9fc97c9f6a1781bd-7a2f18a8fb533233-01
+traceparent: 00-f8c3f4037680475e86daaa95e720dd17-fd5767024ae5bfea-01
 User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36
 Accept: application/json, text/plain, */*
-tracestate: rum=v2&browser&hxyhxsq4jc@1f08d5ef72cb3b3&7feaed4eba96456a9f7d110d9cdd288f&uid_gge8nnhwchpiyuec
+tracestate: rum=v2&browser&hxyhxsq4jc@1f08d5ef72cb3b3&39fcbcf3b1d149fabc73fbe575c81dcd&uid_gge8nnhwchpiyuec
 Sec-Fetch-Site: same-origin
 Sec-Fetch-Mode: cors
 Sec-Fetch-Dest: empty
-Referer: https://example.com/login
+Referer: https://example.com/login?redirect=/loginhttps://example.com/login
 Accept-Encoding: gzip, deflate, br, zstd
-Cookie: x-higress-tag=uat; acw_tc=ac11000117522233235163963e0068cb336d68d504f1d73b64cd7876167b4e
+Cookie: x-higress-tag=uat; acw_tc=0a47308217519455063915991e005dfe2d018b085d9409dea41fea897c20bb
 
